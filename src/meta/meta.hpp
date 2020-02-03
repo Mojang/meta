@@ -2040,7 +2040,61 @@ inline meta::type func::arg(size_type index) const noexcept {
 namespace internal {
 
 
-template<typename Type, typename = std::enable_if_t<!std::is_void_v<Type> && !std::is_function_v<Type>>>
+    template<class T, class EqualTo>
+    struct has_operator_equal_impl
+    {
+        template<class U, class V>
+        static auto test(U*) -> decltype(std::declval<U>() == std::declval<V>());
+        template<typename, typename>
+        static auto test(...)->std::false_type;
+
+        using type = typename std::is_same<bool, decltype(test<T, EqualTo>(0))>::type;
+    };
+
+    template<class T, class EqualTo = T>
+    struct has_operator_equal : has_operator_equal_impl<T, EqualTo>::type {};
+
+    template<typename... T>
+    struct has_operator_equal<std::variant<T...>> : std::false_type {};
+
+    template<typename T, typename Cond = void>
+    struct base_type {
+        using type = T;
+    };
+
+    template<typename T>
+    struct base_type<std::optional<T>> {
+        using type = typename base_type<T>::type;
+    };
+
+    template<typename T, typename = void>
+    struct is_iterator
+    {
+        static constexpr bool value = false;
+    };
+
+    template<typename T>
+    struct is_iterator<T, typename std::enable_if<!std::is_same<typename std::iterator_traits<T>::value_type, void>::value>::type>
+    {
+        static constexpr bool value = true;
+    };
+
+    template<typename T>
+    struct base_type<T, std::void_t<typename T::value_type>> {
+        using type = std::conditional_t<is_iterator<T>::value, T, typename base_type<typename T::value_type>::type>;
+    };
+
+    template<typename T, typename V>
+    struct base_type<std::unordered_map<T, V>> {
+        using type = typename base_type<V>::type;
+    };
+
+    template<typename T, typename V>
+    struct base_type<std::pair<T, V>> {
+        using type = typename base_type<V>::type;
+    };
+
+template<typename Type, typename = std::enable_if_t<!std::is_void_v<Type> && !std::is_function_v<Type> && has_operator_equal<base_type<Type>::type>::value>>
 static auto compare(int, const void *lhs, const void *rhs)
 -> decltype(std::declval<Type>() == std::declval<Type>(), bool{}) {
     return *static_cast<const Type *>(lhs) == *static_cast<const Type *>(rhs);
