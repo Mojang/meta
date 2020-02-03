@@ -417,7 +417,7 @@ public:
         : any{}
     {
         node = internal::type_info<Type>::resolve();
-        instance = &type.get();
+        instance = const_cast<void *>(reinterpret_cast<const void *>(&type.get()));
     }
 
     /**
