@@ -9,6 +9,7 @@
 #include <utility>
 #include <type_traits>
 #include <cassert>
+#include <variant>
 
 
 namespace meta {
@@ -2094,7 +2095,7 @@ namespace internal {
         using type = typename base_type<V>::type;
     };
 
-template<typename Type, typename = std::enable_if_t<!std::is_void_v<Type> && !std::is_function_v<Type> && has_operator_equal<base_type<Type>::type>::value>>
+template<typename Type, typename = std::enable_if_t<!std::is_void_v<Type> && !std::is_function_v<Type> && has_operator_equal<typename base_type<Type>::type>::value>>
 static auto compare(int, const void *lhs, const void *rhs)
 -> decltype(std::declval<Type>() == std::declval<Type>(), bool{}) {
     return *static_cast<const Type *>(lhs) == *static_cast<const Type *>(rhs);
