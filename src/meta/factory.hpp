@@ -103,7 +103,7 @@ bool setter([[maybe_unused]] handle handle, [[maybe_unused]] any index, [[maybe_
         } else if constexpr(std::is_member_object_pointer_v<decltype(Data)>) {
             using data_type = std::remove_cv_t<std::remove_reference_t<decltype(std::declval<Type>().*Data)>>;
             static_assert(std::is_invocable_v<decltype(Data), Type *>);
-            auto *clazz = any{handle}.try_cast<Type>();
+            [[maybe_unused]] auto *clazz = any{handle}.try_cast<Type>();
 
             if constexpr(std::is_array_v<data_type>) {
                 using underlying_type = std::remove_extent_t<data_type>;
@@ -114,6 +114,9 @@ bool setter([[maybe_unused]] handle handle, [[maybe_unused]] any index, [[maybe_
                     std::invoke(Data, clazz)[*idx] = direct ? *direct : value.cast<underlying_type>();
                     accepted = true;
                 }
+            }
+            else if constexpr(!std::is_copy_constructible_v<data_type>) {
+                accepted = false;
             } else {
                 auto *direct = value.try_cast<data_type>();
 
