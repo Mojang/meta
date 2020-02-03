@@ -335,6 +335,20 @@ class any {
         }
     };
 
+    template<typename Type, typename = std::void_t<>>
+    struct copy_impl {
+        static void* copy(storage_type&, const void*) {
+            return nullptr;
+        }
+    };
+
+    template<typename Type>
+    struct copy_impl<Type, std::enable_if_t<std::is_copy_constructible_v<Type>> > {
+        static void* copy(storage_type& storage, const void* instance) {
+            return new (&storage) Type{ *static_cast<const Type*>(instance) }; 
+        }
+    };
+
     template<typename Type>
     struct type_traits<Type, std::enable_if_t<sizeof(Type) <= sizeof(void *) && std::is_nothrow_move_constructible_v<Type>>> {
         template<typename... Args>
@@ -351,7 +365,7 @@ class any {
         }
 
         static void * copy(storage_type &storage, const void *instance) {
-            return new (&storage) Type{*static_cast<const Type *>(instance)};
+            return copy_impl<Type>::copy(storage, instance);
         }
 
         static void * steal(storage_type &to, void *from, destroy_fn_type *destroy_fn) {
