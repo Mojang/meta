@@ -692,6 +692,8 @@ public:
           instance{any.instance}
     {}
 
+	inline handle(type type, void* instance_) noexcept;
+
     /**
      * @brief Constructs a meta handle from a given instance.
      * @tparam Type Type of object to use to initialize the handle.
@@ -1452,6 +1454,15 @@ public:
         return any;
     }
 
+	any invoke_generic(handle handle, size_t argc, any* argv) const {
+		any any{};
+		if (argc == size()) {
+			any = node->invoke(handle, argv);
+		}
+
+		return any;
+	}
+
     /**
      * @brief Iterates all the properties assigned to a meta function.
      * @tparam Op Type of the function object to invoke.
@@ -1524,6 +1535,7 @@ inline bool operator!=(const func &lhs, const func &rhs) noexcept {
 class type {
     /*! @brief A meta node is allowed to create meta objects. */
     template<typename...> friend struct internal::info_node;
+	friend class handle;
 
     type(const internal::type_node *curr) noexcept
         : node{curr}
@@ -1950,6 +1962,11 @@ inline any::any(handle handle) noexcept
 inline meta::type any::type() const noexcept {
     return node ? node->clazz() : meta::type{};
 }
+
+inline handle::handle(meta::type type, void* instance_) noexcept
+	: node(type.node)
+	, instance(instance_)
+{}
 
 
 inline meta::type handle::type() const noexcept {
