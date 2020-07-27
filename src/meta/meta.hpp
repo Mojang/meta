@@ -139,6 +139,13 @@ struct type_node {
     bool(* const compare)(const void *, const void *);
     type(* const remove_pointer)() noexcept;
     type(* const clazz)() noexcept;
+
+    struct template_typedata {
+        type_node* template_type;
+        type_node* inner_type;
+    };
+    template_typedata(*const template_type)() noexcept;
+
     base_node *base{nullptr};
     conv_node *conv{nullptr};
     ctor_node *ctor{nullptr};
@@ -1667,6 +1674,16 @@ public:
         return node->remove_pointer();
     }
 
+    meta::type template_type() const noexcept {
+        auto ty = node->template_type();
+        return meta::type(ty.template_type);
+    }
+
+    meta::type template_inner_type() const noexcept {
+        auto ty = node->template_type();
+        return meta::type(ty.inner_type);
+    }
+
     /**
      * @brief Iterates all the meta base of a meta type.
      *
@@ -2054,6 +2071,16 @@ static bool compare(char, const void *lhs, const void *rhs) {
     return lhs == rhs;
 }
 
+template <typename> struct is_template : std::false_type {
+    using type = void;
+    using inner_type = void;
+};
+
+template <template <typename T> class Tmpl, typename T>
+struct is_template<Tmpl<T>> : std::true_type {
+    using type = Tmpl<meta::type>;
+    using inner_type = T;
+};
 
 template<typename Type>
 inline type_node * info_node<Type>::resolve() noexcept {
@@ -2082,6 +2109,14 @@ inline type_node * info_node<Type>::resolve() noexcept {
             },
             []() noexcept -> meta::type {
                 return &node;
+            },
+            []() noexcept -> type_node::template_typedata {
+                if constexpr(is_template<Type>::value) {
+                    return type_node::template_typedata{ internal::type_info<is_template<Type>::type>::resolve(), internal::type_info<is_template<Type>::inner_type>::resolve() };
+                }
+                else {
+                    return type_node::template_typedata{ &node, &node };
+                }
             }
         };
 
