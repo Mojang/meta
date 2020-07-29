@@ -602,6 +602,10 @@ public:
         return valid;
     }
 
+
+	any convert(meta::type type) const;
+	bool convert(meta::type type);
+
     /**
      * @brief Replaces the contained object by initializing a new instance
      * directly.
@@ -1978,6 +1982,42 @@ inline any::any(handle handle) noexcept
 
 inline meta::type any::type() const noexcept {
     return node ? node->clazz() : meta::type{};
+}
+ 
+inline any any::convert(meta::type type) const {
+	if (node->clazz().operator==(type)) {
+		return *this;
+	}
+
+	any any{};
+	const auto *conv = internal::find_if<&internal::type_node::conv>([type](auto *other) {
+		return other->ref()->clazz() == type;
+	}, node);
+
+	if (conv) {
+		any = conv->convert(instance);
+	}
+
+	return any;
+}
+
+inline bool any::convert(meta::type type) {
+	if(node == nullptr) {
+		return false;
+	}
+
+	bool valid = true;
+	if (node->clazz() != type) {
+		if (auto any = std::as_const(*this).convert(type); any) {
+			swap(any, *this);
+			valid = true;
+		}
+		else {
+			valid = false;
+		}
+	}
+
+	return valid;
 }
 
 inline handle::handle(meta::type type, void* instance_) noexcept
