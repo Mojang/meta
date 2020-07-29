@@ -142,7 +142,7 @@ struct type_node {
 
     struct template_typedata {
         type_node* template_type;
-        type_node* inner_type;
+		gsl::span<type_node*> inner_types;
     };
     template_typedata(*const template_type)() noexcept;
 
@@ -1679,9 +1679,9 @@ public:
         return meta::type(ty.template_type);
     }
 
-    meta::type template_inner_type() const noexcept {
+    meta::type template_inner_type(int type_idx = 0) const noexcept {
         auto ty = node->template_type();
-        return meta::type(ty.inner_type);
+        return meta::type(ty.inner_types[type_idx]);
     }
 
     /**
@@ -2051,6 +2051,8 @@ inline meta::type func::arg(size_type index) const noexcept {
 }
 
 
+using placeholder_type = uint8_t;
+
 /**
  * @cond TURN_OFF_DOXYGEN
  * Internal details not to be documented.
@@ -2072,14 +2074,29 @@ static bool compare(char, const void *lhs, const void *rhs) {
 }
 
 template <typename> struct is_template : std::false_type {
-    using type = void;
-    using inner_type = void;
+	using type = void;
+	using inner_type = void;
+
+	static inline gsl::span<internal::type_node *> resolveTypes() {
+		static std::array<type_node *, 1> types = { internal::info_node<void>::resolve() };
+		return gsl::make_span(types);
+	}
 };
 
-template <template <typename T> class Tmpl, typename T>
-struct is_template<Tmpl<T>> : std::true_type {
-    using type = Tmpl<meta::type>;
-    using inner_type = T;
+template <template <typename...> class Tmpl, typename T0, typename... OtherTypes>
+struct is_template<Tmpl<T0, OtherTypes...>> : std::true_type {
+    using type = Tmpl<meta::placeholder_type>;
+	static const unsigned num_types = sizeof...(OtherTypes) + 1;
+
+	
+	static inline gsl::span<internal::type_node *> resolveTypes() {
+		static std::array<internal::type_node *, num_types> all_nodes = {
+			internal::info_node<T0>::resolve(),
+			internal::info_node<OtherTypes>::resolve()...
+		};
+
+		return gsl::make_span(all_nodes);
+	}
 };
 
 template<typename Type>
@@ -2111,11 +2128,13 @@ inline type_node * info_node<Type>::resolve() noexcept {
                 return &node;
             },
             []() noexcept -> type_node::template_typedata {
-                if constexpr(is_template<Type>::value) {
-                    return type_node::template_typedata{ internal::type_info<is_template<Type>::type>::resolve(), internal::type_info<is_template<Type>::inner_type>::resolve() };
+				using is_template_type = is_template<Type>;
+                if constexpr(is_template_type::value) {
+                    return type_node::template_typedata{ internal::type_info<typename is_template_type::type>::resolve(), is_template<Type>::resolveTypes() };
                 }
                 else {
-                    return type_node::template_typedata{ &node, &node };
+					static std::array<type_node *, 1> types = { &node };
+                    return type_node::template_typedata{ &node, gsl::make_span(types) };
                 }
             }
         };
