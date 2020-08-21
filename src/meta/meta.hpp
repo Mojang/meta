@@ -9,7 +9,6 @@
 #include <utility>
 #include <type_traits>
 #include <cassert>
-#include <variant>
 
 
 namespace meta {
