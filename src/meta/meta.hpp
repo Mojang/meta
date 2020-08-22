@@ -2055,7 +2055,7 @@ namespace internal {
     struct has_operator_equal : has_operator_equal_impl<T, EqualTo>::type {};
 
     template<typename... T>
-    struct has_operator_equal<std::variant<T...>> : std::false_type {};
+    struct has_operator_equal<nonstd::variant<T...>> : std::false_type {};
 
     template<typename T, typename Cond = void>
     struct base_type {
