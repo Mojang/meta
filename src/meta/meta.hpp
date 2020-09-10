@@ -305,6 +305,9 @@ class any {
     using destroy_fn_type = void(void *);
     using steal_fn_type = void *(storage_type &, void *, destroy_fn_type *);
 
+	template <class... _Types>
+	using void_t = void;
+
     template<typename Type, typename = std::void_t<>>
     struct type_traits {
         template<typename... Args>
@@ -2078,6 +2081,9 @@ namespace internal {
     {
         static constexpr bool value = true;
     };
+
+	template <class... _Types>
+	using void_t = void;
 
     template<typename T>
     struct base_type<T, std::void_t<typename T::value_type>> {
