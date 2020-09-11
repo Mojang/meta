@@ -278,6 +278,33 @@ inline auto ctor(std::index_sequence<Indexes...>, const type_node *node) noexcep
 }
 
 
+template< class T >
+inline constexpr bool is_copy_constructible_v = std::is_copy_constructible<T>::value;
+
+template< class T >
+inline constexpr bool is_trivially_copy_constructible_v = std::is_trivially_copy_constructible<T>::value;
+
+template< class T >
+inline constexpr bool is_nothrow_copy_constructible_v = std::is_nothrow_copy_constructible<T>::value;
+
+template< class T >
+inline constexpr bool is_nothrow_move_constructible_v = std::is_nothrow_move_constructible<T>::value;
+
+template <class T> struct in_place_type_t {
+	explicit in_place_type_t() = default;
+};
+template <class T>
+inline constexpr in_place_type_t<T> in_place_type{};
+
+template< class V, class W >
+inline constexpr bool is_same_v = std::is_same<V, W>::value;
+
+template <class T>
+constexpr std::add_const_t<T>& as_const(T& t) noexcept;
+
+template <class T>
+void as_const(const T&&) = delete;
+
 /**
  * Internal details not to be documented.
  * @endcond TURN_OFF_DOXYGEN
@@ -346,14 +373,14 @@ class any {
     };
 
     template<typename Type>
-    struct copy_impl<Type, std::enable_if_t<std::is_copy_constructible_v<Type>> > {
+    struct copy_impl<Type, std::enable_if_t<is_copy_constructible_v<Type>> > {
         static void* copy(storage_type& storage, const void* instance) {
             return new (&storage) Type{ *static_cast<const Type*>(instance) }; 
         }
     };
 
     template<typename Type>
-    struct type_traits<Type, std::enable_if_t<sizeof(Type) <= sizeof(void *) && std::is_nothrow_move_constructible_v<Type>>> {
+    struct type_traits<Type, std::enable_if_t<sizeof(Type) <= sizeof(void *) && is_nothrow_move_constructible_v<Type>>> {
         template<typename... Args>
         static void * instance(storage_type &storage, Args &&... args) {
             return new (&storage) Type{std::forward<Args>(args)...};
@@ -396,7 +423,7 @@ public:
      * @param args Parameters to use to construct the instance.
      */
     template<typename Type, typename... Args>
-    explicit any(std::in_place_type_t<Type>, [[maybe_unused]] Args &&... args)
+    explicit any(in_place_type_t<Type>, [[maybe_unused]] Args &&... args)
         : any{}
     {
         node = internal::type_info<Type>::resolve();
@@ -434,9 +461,9 @@ public:
      * @tparam Type Type of object to use to initialize the container.
      * @param type An instance of an object to use to initialize the container.
      */
-    template<typename Type, typename = std::enable_if_t<!std::is_same_v<std::remove_cv_t<std::remove_reference_t<Type>>, any>>>
+    template<typename Type, typename = std::enable_if_t<!is_same_v<std::remove_cv_t<std::remove_reference_t<Type>>, any>>>
     any(Type &&type)
-        : any{std::in_place_type<std::remove_cv_t<std::remove_reference_t<Type>>>, std::forward<Type>(type)}
+        : any{in_place_type<std::remove_cv_t<std::remove_reference_t<Type>>>, std::forward<Type>(type)}
     {}
 
     /**
@@ -481,7 +508,7 @@ public:
      * @param type An instance of an object to use to initialize the container.
      * @return This meta any object.
      */
-    template<typename Type, typename = std::enable_if_t<!std::is_same_v<std::remove_cv_t<std::remove_reference_t<Type>>, any>>>
+    template<typename Type, typename = std::enable_if_t<!is_same_v<std::remove_cv_t<std::remove_reference_t<Type>>, any>>>
     any & operator=(Type &&type) {
         return (*this = any{std::forward<Type>(type)});
     }
@@ -621,7 +648,7 @@ public:
      */
     template<typename Type, typename... Args>
     void emplace(Args&& ... args) {
-        *this = any{std::in_place_type_t<Type>{}, std::forward<Args>(args)...};
+        *this = any{in_place_type_t<Type>{}, std::forward<Args>(args)...};
     }
 
     /**
@@ -714,7 +741,7 @@ public:
      * @tparam Type Type of object to use to initialize the handle.
      * @param obj A reference to an object to use to initialize the handle.
      */
-    template<typename Type, typename = std::enable_if_t<!std::is_same_v<std::remove_cv_t<std::remove_reference_t<Type>>, handle>>>
+    template<typename Type, typename = std::enable_if_t<!is_same_v<std::remove_cv_t<std::remove_reference_t<Type>>, handle>>>
     handle(Type &obj) noexcept
         : node{internal::type_info<Type>::resolve()},
           instance{&obj}
