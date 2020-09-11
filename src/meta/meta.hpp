@@ -296,8 +296,16 @@ inline constexpr in_place_type_t<T> in_place_type{};
 template< class V, class W >
 inline constexpr bool is_same_v = std::is_same<V, W>::value;
 
+template <typename F, typename... Args>
+struct is_invocable :
+	std::is_constructible<
+	std::function<void(Args ...)>,
+	std::reference_wrapper<typename std::remove_reference<F>::type>
+	> {
+};
+
 template <class Fn, class... ArgTypes>
-inline constexpr bool is_invocable_v = std::is_invocable<Fn, ArgTypes...>::value;
+inline constexpr bool is_invocable_v = is_invocable<Fn, ArgTypes...>::value;
 
 template <class T>
 constexpr std::add_const_t<T>& as_const(T& t) noexcept {
@@ -313,6 +321,38 @@ void as_const(const T&&) = delete;
 template< class T >
 inline constexpr bool is_void_v = std::is_void<T>::value;
 
+template< class T >
+inline constexpr bool is_function_v = std::is_function<T>::value;
+
+template< class T >
+inline constexpr bool is_integral_v = std::is_integral<T>::value;
+
+template< class T >
+inline constexpr bool is_floating_point_v = std::is_floating_point<T>::value;
+
+template< class T >
+inline constexpr bool is_array_v = std::is_array<T>::value;
+
+template< class T >
+inline constexpr bool is_enum_v = std::is_enum<T>::value;
+
+template< class T >
+inline constexpr bool is_union_v = std::is_union<T>::value;
+
+template< class T >
+inline constexpr bool is_class_v = std::is_class<T>::value;
+
+template< class T >
+inline constexpr bool is_pointer_v = std::is_pointer<T>::value;
+
+template< class T >
+inline constexpr bool is_member_object_pointer_v = std::is_member_object_pointer<T>::value;
+
+template< class T >
+inline constexpr bool is_member_function_pointer_v = std::is_member_function_pointer<T>::value;
+
+template< class T, unsigned N = 0 >
+inline constexpr std::size_t extent_v = std::extent<T, N>::value;
 /**
  * Internal details not to be documented.
  * @endcond TURN_OFF_DOXYGEN
@@ -2101,7 +2141,7 @@ namespace internal {
     };
 
     template<typename T>
-    struct base_type<std::optional<T>> {
+    struct base_type<nonstd::optional<T>> {
         using type = typename base_type<T>::type;
     };
 
@@ -2135,7 +2175,7 @@ namespace internal {
         using type = typename base_type<V>::type;
     };
 
-template<typename Type, typename = std::enable_if_t<!is_void_v<Type> && !std::is_function_v<Type> && has_operator_equal<typename base_type<Type>::type>::value>>
+template<typename Type, typename = std::enable_if_t<!is_void_v<Type> && !is_function_v<Type> && has_operator_equal<typename base_type<Type>::type>::value>>
 static auto compare(int, const void *lhs, const void *rhs)
 -> decltype(std::declval<Type>() == std::declval<Type>(), bool{}) {
     return *static_cast<const Type *>(lhs) == *static_cast<const Type *>(rhs);
@@ -2155,17 +2195,17 @@ inline type_node * info_node<Type>::resolve() noexcept {
             nullptr,
             nullptr,
             is_void_v<Type>,
-            std::is_integral_v<Type>,
-            std::is_floating_point_v<Type>,
-            std::is_array_v<Type>,
-            std::is_enum_v<Type>,
-            std::is_union_v<Type>,
-            std::is_class_v<Type>,
-            std::is_pointer_v<Type>,
-            std::is_pointer_v<Type> && std::is_function_v<std::remove_pointer_t<Type>>,
-            std::is_member_object_pointer_v<Type>,
-            std::is_member_function_pointer_v<Type>,
-            std::extent_v<Type>,
+            is_integral_v<Type>,
+            is_floating_point_v<Type>,
+            is_array_v<Type>,
+            is_enum_v<Type>,
+            is_union_v<Type>,
+            is_class_v<Type>,
+            is_pointer_v<Type>,
+            is_pointer_v<Type> && is_function_v<std::remove_pointer_t<Type>>,
+            is_member_object_pointer_v<Type>,
+            is_member_function_pointer_v<Type>,
+            extent_v<Type>,
             [](const void *lhs, const void *rhs) {
                 return compare<Type>(0, lhs, rhs);
             },
