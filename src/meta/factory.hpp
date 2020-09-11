@@ -89,10 +89,10 @@ bool setter([[maybe_unused]] handle handle, [[maybe_unused]] any index, [[maybe_
     bool accepted = false;
 
     if constexpr(!Const) {
-        if constexpr(std::is_function_v<std::remove_pointer_t<decltype(Data)>> || std::is_member_function_pointer_v<decltype(Data)>) {
+        if constexpr(is_function_v<std::remove_pointer_t<decltype(Data)>> || is_member_function_pointer_v<decltype(Data)>) {
             using helper_type = function_helper_t<decltype(Data)>;
-            using data_type = std::tuple_element_t<!std::is_member_function_pointer_v<decltype(Data)>, typename helper_type::args_type>;
-            static_assert(std::is_invocable_v<decltype(Data), Type &, data_type>);
+            using data_type = std::tuple_element_t<!is_member_function_pointer_v<decltype(Data)>, typename helper_type::args_type>;
+            static_assert(is_invocable_v<decltype(Data), Type &, data_type>);
             auto *clazz = any{handle}.try_cast<Type>();
             auto *direct = value.try_cast<data_type>();
 
@@ -100,12 +100,12 @@ bool setter([[maybe_unused]] handle handle, [[maybe_unused]] any index, [[maybe_
                 std::invoke(Data, *clazz, direct ? *direct : value.cast<data_type>());
                 accepted = true;
             }
-        } else if constexpr(std::is_member_object_pointer_v<decltype(Data)>) {
+        } else if constexpr(is_member_object_pointer_v<decltype(Data)>) {
             using data_type = std::remove_cv_t<std::remove_reference_t<decltype(std::declval<Type>().*Data)>>;
-            static_assert(std::is_invocable_v<decltype(Data), Type *>);
+            static_assert(is_invocable_v<decltype(Data), Type *>);
             [[maybe_unused]] auto *clazz = any{handle}.try_cast<Type>();
 
-            if constexpr(std::is_array_v<data_type>) {
+            if constexpr(is_array_v<data_type>) {
                 using underlying_type = std::remove_extent_t<data_type>;
                 auto *direct = value.try_cast<underlying_type>();
                 auto *idx = index.try_cast<std::size_t>();
@@ -115,7 +115,7 @@ bool setter([[maybe_unused]] handle handle, [[maybe_unused]] any index, [[maybe_
                     accepted = true;
                 }
             }
-            else if constexpr(!std::is_copy_constructible_v<data_type>) {
+            else if constexpr(!is_copy_constructible_v<data_type>) {
                 accepted = false;
             } else {
                 auto *direct = value.try_cast<data_type>();
@@ -126,10 +126,10 @@ bool setter([[maybe_unused]] handle handle, [[maybe_unused]] any index, [[maybe_
                 }
             }
         } else {
-            static_assert(std::is_pointer_v<decltype(Data)>);
+            static_assert(is_pointer_v<decltype(Data)>);
             using data_type = std::remove_cv_t<std::remove_reference_t<decltype(*Data)>>;
 
-            if constexpr(std::is_array_v<data_type>) {
+            if constexpr(is_array_v<data_type>) {
                 using underlying_type = std::remove_extent_t<data_type>;
                 auto *direct = value.try_cast<underlying_type>();
                 auto *idx = index.try_cast<std::size_t>();
@@ -156,35 +156,35 @@ bool setter([[maybe_unused]] handle handle, [[maybe_unused]] any index, [[maybe_
 template<typename Type, auto Data, typename Policy>
 any getter([[maybe_unused]] handle handle, [[maybe_unused]] any index) {
     auto dispatch = [](auto &&value) {
-        if constexpr(std::is_same_v<Policy, as_void_t>) {
+        if constexpr(is_same_v<Policy, as_void_t>) {
             return any{std::in_place_type<void>};
-        } else if constexpr(std::is_same_v<Policy, as_alias_t>) {
+        } else if constexpr(is_same_v<Policy, as_alias_t>) {
             return any{std::ref(std::forward<decltype(value)>(value))};
         } else {
-            static_assert(std::is_same_v<Policy, as_is_t>);
+            static_assert(is_same_v<Policy, as_is_t>);
             return any{std::forward<decltype(value)>(value)};
         }
     };
 
-    if constexpr(std::is_function_v<std::remove_pointer_t<decltype(Data)>> || std::is_member_function_pointer_v<decltype(Data)>) {
-        static_assert(std::is_invocable_v<decltype(Data), Type &>);
+    if constexpr(is_function_v<std::remove_pointer_t<decltype(Data)>> || is_member_function_pointer_v<decltype(Data)>) {
+        static_assert(is_invocable_v<decltype(Data), Type &>);
         auto *clazz = any{handle}.try_cast<Type>();
         return clazz ? dispatch(std::invoke(Data, *clazz)) : any{};
-    } else if constexpr(std::is_member_object_pointer_v<decltype(Data)>) {
+    } else if constexpr(is_member_object_pointer_v<decltype(Data)>) {
         using data_type = std::remove_cv_t<std::remove_reference_t<decltype(std::declval<Type>().*Data)>>;
-        static_assert(std::is_invocable_v<decltype(Data), Type *>);
+        static_assert(is_invocable_v<decltype(Data), Type *>);
         auto *clazz = any{handle}.try_cast<Type>();
 
-        if constexpr(std::is_array_v<data_type>) {
+        if constexpr(is_array_v<data_type>) {
             auto *idx = index.try_cast<std::size_t>();
             return (clazz && idx) ? dispatch(std::invoke(Data, clazz)[*idx]) : any{};
         } else {
             return clazz ? dispatch(std::invoke(Data, clazz)) : any{};
         }
     } else {
-        static_assert(std::is_pointer_v<std::decay_t<decltype(Data)>>);
+        static_assert(is_pointer_v<std::decay_t<decltype(Data)>>);
 
-        if constexpr(std::is_array_v<std::remove_pointer_t<decltype(Data)>>) {
+        if constexpr(is_array_v<std::remove_pointer_t<decltype(Data)>>) {
             auto *idx = index.try_cast<std::size_t>();
             return idx ? dispatch((*Data)[*idx]) : any{};
         } else {
@@ -199,13 +199,13 @@ any invoke([[maybe_unused]] handle handle, any *args, std::index_sequence<Indexe
     using helper_type = function_helper_t<decltype(Candidate)>;
 
     auto dispatch = [](auto *... args) {
-        if constexpr(std::is_void_v<typename helper_type::return_type> || std::is_same_v<Policy, as_void_t>) {
+        if constexpr(is_void_v<typename helper_type::return_type> || is_same_v<Policy, as_void_t>) {
             std::invoke(Candidate, *args...);
             return any{std::in_place_type<void>};
-        } else if constexpr(std::is_same_v<Policy, as_alias_t>) {
+        } else if constexpr(is_same_v<Policy, as_alias_t>) {
             return any{std::ref(std::invoke(Candidate, *args...))};
         } else {
-            static_assert(std::is_same_v<Policy, as_is_t>);
+            static_assert(is_same_v<Policy, as_is_t>);
             return any{std::invoke(Candidate, *args...)};
         }
     };
@@ -220,7 +220,7 @@ any invoke([[maybe_unused]] handle handle, any *args, std::index_sequence<Indexe
         return instance;
     }(args+Indexes, (args+Indexes)->try_cast<std::tuple_element_t<Indexes, typename helper_type::args_type>>())...);
 
-    if constexpr(std::is_function_v<std::remove_pointer_t<decltype(Candidate)>>) {
+    if constexpr(is_function_v<std::remove_pointer_t<decltype(Candidate)>>) {
         return (std::get<Indexes>(direct) && ...) ? dispatch(std::get<Indexes>(direct)...) : any{};
     } else {
         auto *clazz = any{handle}.try_cast<Type>();
@@ -359,7 +359,7 @@ public:
      */
     template<typename Base>
     factory base() noexcept {
-        static_assert(std::is_base_of_v<Base, Type>);
+        static_assert(is_base_of_v<Base, Type>);
         auto * const type = internal::type_info<Type>::resolve();
 
         static internal::base_node node{
@@ -394,7 +394,7 @@ public:
      */
     template<typename To>
     factory conv() noexcept {
-        static_assert(std::is_convertible_v<Type, To>);
+        static_assert(is_convertible_v<Type, To>);
         auto * const type = internal::type_info<Type>::resolve();
 
         static internal::conv_node node{
@@ -474,7 +474,7 @@ public:
     template<auto Func, typename Policy = as_is_t, typename... Property>
     factory ctor(Property &&... property) noexcept {
         using helper_type = internal::function_helper_t<decltype(Func)>;
-        static_assert(std::is_same_v<typename helper_type::return_type, Type>);
+        static_assert(is_same_v<typename helper_type::return_type, Type>);
         auto * const type = internal::type_info<Type>::resolve();
 
         static internal::ctor_node node{
@@ -560,7 +560,7 @@ public:
      */
     template<auto Func>
     factory dtor() noexcept {
-        static_assert(std::is_invocable_v<decltype(Func), Type &>);
+        static_assert(is_invocable_v<decltype(Func), Type &>);
         auto * const type = internal::type_info<Type>::resolve();
 
         static internal::dtor_node node{
@@ -608,8 +608,8 @@ public:
         auto * const type = internal::type_info<Type>::resolve();
         internal::data_node *curr = nullptr;
 
-        if constexpr(std::is_same_v<Type, decltype(Data)>) {
-            static_assert(std::is_same_v<Policy, as_is_t>);
+        if constexpr(is_same_v<Type, decltype(Data)>) {
+            static_assert(is_same_v<Policy, as_is_t>);
 
             static internal::data_node node{
                 &internal::type_info<Type>::template data<Data>,
@@ -629,7 +629,7 @@ public:
 
             node.prop = properties<std::integral_constant<Type, Data>>(std::forward<Property>(property)...);
             curr = &node;
-        } else if constexpr(std::is_member_object_pointer_v<decltype(Data)>) {
+        } else if constexpr(is_member_object_pointer_v<decltype(Data)>) {
             using data_type = std::remove_reference_t<decltype(std::declval<Type>().*Data)>;
 
             static internal::data_node node{
@@ -638,10 +638,10 @@ public:
                 type,
                 nullptr,
                 nullptr,
-                std::is_const_v<data_type>,
-                !std::is_member_object_pointer_v<decltype(Data)>,
+                is_const_v<data_type>,
+                !is_member_object_pointer_v<decltype(Data)>,
                 &internal::type_info<data_type>::resolve,
-                &internal::setter<std::is_const_v<data_type>, Type, Data>,
+                &internal::setter<is_const_v<data_type>, Type, Data>,
                 &internal::getter<Type, Data, Policy>,
                 []() noexcept -> meta::data {
                     return &node;
@@ -651,7 +651,7 @@ public:
             node.prop = properties<std::integral_constant<decltype(Data), Data>>(std::forward<Property>(property)...);
             curr = &node;
         } else {
-            static_assert(std::is_pointer_v<std::decay_t<decltype(Data)>>);
+            static_assert(is_pointer_v<std::decay_t<decltype(Data)>>);
             using data_type = std::remove_pointer_t<std::decay_t<decltype(Data)>>;
 
             static internal::data_node node{
@@ -660,10 +660,10 @@ public:
                 type,
                 nullptr,
                 nullptr,
-                std::is_const_v<data_type>,
-                !std::is_member_object_pointer_v<decltype(Data)>,
+                is_const_v<data_type>,
+                !is_member_object_pointer_v<decltype(Data)>,
                 &internal::type_info<data_type>::resolve,
-                &internal::setter<std::is_const_v<data_type>, Type, Data>,
+                &internal::setter<is_const_v<data_type>, Type, Data>,
                 &internal::getter<Type, Data, Policy>,
                 []() noexcept -> meta::data {
                     return &node;
@@ -710,7 +710,7 @@ public:
     factory data(const std::size_t identifier, Property &&... property) noexcept {
         using owner_type = std::tuple<std::integral_constant<decltype(Setter), Setter>, std::integral_constant<decltype(Getter), Getter>>;
         using underlying_type = std::invoke_result_t<decltype(Getter), Type &>;
-        static_assert(std::is_invocable_v<decltype(Setter), Type &, underlying_type>);
+        static_assert(is_invocable_v<decltype(Setter), Type &, underlying_type>);
         auto * const type = internal::type_info<Type>::resolve();
 
         static internal::data_node node{
@@ -769,8 +769,8 @@ public:
             nullptr,
             helper_type::size,
             helper_type::is_const,
-            !std::is_member_function_pointer_v<decltype(Candidate)>,
-            &internal::type_info<std::conditional_t<std::is_same_v<Policy, as_void_t>, void, typename helper_type::return_type>>::resolve,
+            !is_member_function_pointer_v<decltype(Candidate)>,
+            &internal::type_info<std::conditional_t<is_same_v<Policy, as_void_t>, void, typename helper_type::return_type>>::resolve,
             &helper_type::arg,
             [](handle handle, any *any) {
                 return internal::invoke<Type, Candidate, Policy>(handle, any, std::make_index_sequence<helper_type::size>{});
@@ -922,7 +922,7 @@ inline type resolve(const std::size_t identifier) noexcept {
  * @param op A valid function object.
  */
 template<typename Op>
-inline std::enable_if_t<std::is_invocable_v<Op, type>, void>
+inline std::enable_if_t<is_invocable_v<Op, type>, void>
 resolve(Op op) noexcept {
     internal::iterate([op = std::move(op)](auto *node) {
         op(node->clazz());
