@@ -282,9 +282,6 @@ template< class T >
 inline constexpr bool is_copy_constructible_v = std::is_copy_constructible<T>::value;
 
 template< class T >
-inline constexpr bool is_trivially_copy_constructible_v = std::is_trivially_copy_constructible<T>::value;
-
-template< class T >
 inline constexpr bool is_nothrow_copy_constructible_v = std::is_nothrow_copy_constructible<T>::value;
 
 template< class T >
@@ -299,11 +296,22 @@ inline constexpr in_place_type_t<T> in_place_type{};
 template< class V, class W >
 inline constexpr bool is_same_v = std::is_same<V, W>::value;
 
+template <class Fn, class... ArgTypes>
+inline constexpr bool is_invocable_v = std::is_invocable<Fn, ArgTypes...>::value;
+
+template <class T>
+constexpr std::add_const_t<T>& as_const(T& t) noexcept {
+	return t;
+}
+
 template <class T>
 constexpr std::add_const_t<T>& as_const(T& t) noexcept;
 
 template <class T>
 void as_const(const T&&) = delete;
+
+template< class T >
+inline constexpr bool is_void_v = std::is_void<T>::value;
 
 /**
  * Internal details not to be documented.
@@ -428,7 +436,7 @@ public:
     {
         node = internal::type_info<Type>::resolve();
 
-        if constexpr(!std::is_void_v<Type>) {
+        if constexpr(!is_void_v<Type>) {
             using traits_type = type_traits<std::remove_cv_t<std::remove_reference_t<Type>>>;
             instance = traits_type::instance(storage, std::forward<Args>(args)...);
             destroy_fn = &traits_type::destroy;
@@ -549,7 +557,7 @@ public:
 
     /*! @copydoc data */
     void * data() noexcept {
-        return const_cast<void *>(std::as_const(*this).data());
+        return const_cast<void *>(as_const(*this).data());
     }
 
     /**
@@ -565,7 +573,7 @@ public:
     /*! @copydoc try_cast */
     template<typename Type>
     Type * try_cast() noexcept {
-        return const_cast<Type *>(std::as_const(*this).try_cast<Type>());
+        return const_cast<Type *>(as_const(*this).try_cast<Type>());
     }
 
     /**
@@ -592,7 +600,7 @@ public:
     /*! @copydoc cast */
     template<typename Type>
     Type & cast() noexcept {
-        return const_cast<Type &>(std::as_const(*this).cast<Type>());
+        return const_cast<Type &>(as_const(*this).cast<Type>());
     }
 
     /**
@@ -630,7 +638,7 @@ public:
         bool valid = (node == internal::type_info<Type>::resolve());
 
         if(!valid) {
-            if(auto any = std::as_const(*this).convert<Type>(); any) {
+            if(auto any = as_const(*this).convert<Type>(); any) {
                 swap(any, *this);
                 valid = true;
             }
@@ -763,7 +771,7 @@ public:
 
     /*! @copydoc data */
     void * data() noexcept {
-        return const_cast<void *>(std::as_const(*this).data());
+        return const_cast<void *>(as_const(*this).data());
     }
 
     /**
@@ -1084,7 +1092,7 @@ public:
      * @param op A valid function object.
      */
     template<typename Op>
-    std::enable_if_t<std::is_invocable_v<Op, meta::prop>, void>
+    std::enable_if_t<is_invocable_v<Op, meta::prop>, void>
     prop(Op op) const noexcept {
         internal::iterate([op = std::move(op)](auto *curr) {
             op(curr->clazz());
@@ -1098,7 +1106,7 @@ public:
      * @return The property associated with the given key, if any.
      */
     template<typename Key>
-    std::enable_if_t<!std::is_invocable_v<Key, meta::prop>, meta::prop>
+    std::enable_if_t<!is_invocable_v<Key, meta::prop>, meta::prop>
     prop(Key &&key) const noexcept {
         const auto *curr = internal::find_if([key = any{std::forward<Key>(key)}](auto *candidate) {
             return candidate->key() == key;
@@ -1341,7 +1349,7 @@ public:
      * @param op A valid function object.
      */
     template<typename Op>
-    std::enable_if_t<std::is_invocable_v<Op, meta::prop>, void>
+    std::enable_if_t<is_invocable_v<Op, meta::prop>, void>
     prop(Op op) const noexcept {
         internal::iterate([op = std::move(op)](auto *curr) {
             op(curr->clazz());
@@ -1355,7 +1363,7 @@ public:
      * @return The property associated with the given key, if any.
      */
     template<typename Key>
-    std::enable_if_t<!std::is_invocable_v<Key, meta::prop>, meta::prop>
+    std::enable_if_t<!is_invocable_v<Key, meta::prop>, meta::prop>
     prop(Key &&key) const noexcept {
         const auto *curr = internal::find_if([key = any{std::forward<Key>(key)}](auto *candidate) {
             return candidate->key() == key;
@@ -1502,7 +1510,7 @@ public:
      * @param op A valid function object.
      */
     template<typename Op>
-    std::enable_if_t<std::is_invocable_v<Op, meta::prop>, void>
+    std::enable_if_t<is_invocable_v<Op, meta::prop>, void>
     prop(Op op) const noexcept {
         internal::iterate([op = std::move(op)](auto *curr) {
             op(curr->clazz());
@@ -1516,7 +1524,7 @@ public:
      * @return The property associated with the given key, if any.
      */
     template<typename Key>
-    std::enable_if_t<!std::is_invocable_v<Key, meta::prop>, meta::prop>
+    std::enable_if_t<!is_invocable_v<Key, meta::prop>, meta::prop>
     prop(Key &&key) const noexcept {
         const auto *curr = internal::find_if([key = any{std::forward<Key>(key)}](auto *candidate) {
             return candidate->key() == key;
@@ -1708,7 +1716,7 @@ public:
      * @param op A valid function object.
      */
     template<typename Op>
-    std::enable_if_t<std::is_invocable_v<Op, meta::base>, void>
+    std::enable_if_t<is_invocable_v<Op, meta::base>, void>
     base(Op op) const noexcept {
         internal::iterate<&internal::type_node::base>([op = std::move(op)](auto *curr) {
             op(curr->clazz());
@@ -1807,7 +1815,7 @@ public:
      * @param op A valid function object.
      */
     template<typename Op>
-    std::enable_if_t<std::is_invocable_v<Op, meta::data>, void>
+    std::enable_if_t<is_invocable_v<Op, meta::data>, void>
     data(Op op) const noexcept {
         internal::iterate<&internal::type_node::data>([op = std::move(op)](auto *curr) {
             op(curr->clazz());
@@ -1843,7 +1851,7 @@ public:
      * @param op A valid function object.
      */
     template<typename Op>
-    std::enable_if_t<std::is_invocable_v<Op, meta::func>, void>
+    std::enable_if_t<is_invocable_v<Op, meta::func>, void>
     func(Op op) const noexcept {
         internal::iterate<&internal::type_node::func>([op = std::move(op)](auto *curr) {
             op(curr->clazz());
@@ -1921,7 +1929,7 @@ public:
      * @param op A valid function object.
      */
     template<typename Op>
-    std::enable_if_t<std::is_invocable_v<Op, meta::prop>, void>
+    std::enable_if_t<is_invocable_v<Op, meta::prop>, void>
     prop(Op op) const noexcept {
         internal::iterate<&internal::type_node::prop>([op = std::move(op)](auto *curr) {
             op(curr->clazz());
@@ -1940,7 +1948,7 @@ public:
      * @return The property associated with the given key, if any.
      */
     template<typename Key>
-    std::enable_if_t<!std::is_invocable_v<Key, meta::prop>, meta::prop>
+    std::enable_if_t<!is_invocable_v<Key, meta::prop>, meta::prop>
     prop(Key &&key) const noexcept {
         const auto *curr = internal::find_if<&internal::type_node::prop>([key = any{std::forward<Key>(key)}](auto *candidate) {
             return candidate->key() == key;
@@ -2127,7 +2135,7 @@ namespace internal {
         using type = typename base_type<V>::type;
     };
 
-template<typename Type, typename = std::enable_if_t<!std::is_void_v<Type> && !std::is_function_v<Type> && has_operator_equal<typename base_type<Type>::type>::value>>
+template<typename Type, typename = std::enable_if_t<!is_void_v<Type> && !std::is_function_v<Type> && has_operator_equal<typename base_type<Type>::type>::value>>
 static auto compare(int, const void *lhs, const void *rhs)
 -> decltype(std::declval<Type>() == std::declval<Type>(), bool{}) {
     return *static_cast<const Type *>(lhs) == *static_cast<const Type *>(rhs);
@@ -2146,7 +2154,7 @@ inline type_node * info_node<Type>::resolve() noexcept {
             {},
             nullptr,
             nullptr,
-            std::is_void_v<Type>,
+            is_void_v<Type>,
             std::is_integral_v<Type>,
             std::is_floating_point_v<Type>,
             std::is_array_v<Type>,
