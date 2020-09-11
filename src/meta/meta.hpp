@@ -308,7 +308,7 @@ class any {
 	template <class... _Types>
 	using void_t = void;
 
-    template<typename Type, typename = std::void_t<>>
+    template<typename Type, typename = void_t<>>
     struct type_traits {
         template<typename... Args>
         static void * instance(storage_type &storage, Args &&... args) {
@@ -338,7 +338,7 @@ class any {
         }
     };
 
-    template<typename Type, typename = std::void_t<>>
+    template<typename Type, typename = void_t<>>
     struct copy_impl {
         static void* copy(storage_type&, const void*) {
             return nullptr;
@@ -2086,7 +2086,7 @@ namespace internal {
 	using void_t = void;
 
     template<typename T>
-    struct base_type<T, std::void_t<typename T::value_type>> {
+    struct base_type<T, void_t<typename T::value_type>> {
         using type = std::conditional_t<is_iterator<T>::value, T, typename base_type<typename T::value_type>::type>;
     };
 
