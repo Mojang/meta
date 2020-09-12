@@ -69,7 +69,7 @@ template <class Fn, class... ArgTypes>
 inline constexpr bool is_invocable_v = is_invocable<Fn, ArgTypes...>::value;
 
 template<class _Ty>
-_NODISCARD constexpr std::add_const_t<_Ty>& as_const(_Ty& _Val) noexcept {	// view _Val through const lenses
+constexpr std::add_const_t<_Ty>& as_const(_Ty& _Val) noexcept {	// view _Val through const lenses
 	return (_Val);
 }
 
@@ -108,6 +108,9 @@ inline constexpr bool is_member_object_pointer_v = std::is_member_object_pointer
 
 template< class T >
 inline constexpr bool is_member_function_pointer_v = std::is_member_function_pointer<T>::value;
+
+template< class Base, class Derived >
+inline constexpr bool is_base_of_v = std::is_base_of<Base, Derived>::value;
 
 template< class From, class To >
 inline constexpr bool is_convertible_v = std::is_convertible<From, To>::value;
