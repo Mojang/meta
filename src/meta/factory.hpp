@@ -271,10 +271,10 @@ class factory {
         static internal::prop_node node{
             nullptr,
             []() -> any {
-                return std::as_const(std::get<0>(prop));
+				return static_cast<std::add_const_t<std::remove_reference_t<decltype(std::get<0>(prop))>> &>(std::get<0>(prop));
             },
             []() -> any {
-                return std::as_const(std::get<1>(prop));
+				return static_cast<std::add_const_t<std::remove_reference_t<decltype(std::get<1>(prop))>> &>(std::get<1>(prop));
             },
             []() noexcept -> meta::prop {
                 return &node;

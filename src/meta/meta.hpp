@@ -25,6 +25,20 @@ class data;
 class func;
 class type;
 
+template<typename Fn, typename... Args,
+	std::enable_if_t < std::is_member_pointer<std::decay_t<Fn>>{}, int > = 0 >
+	constexpr decltype(auto) my_invoke(Fn&& f, Args&&... args)
+	noexcept(noexcept(std::mem_fn(f)(std::forward<Args>(args)...))) {
+	return std::mem_fn(f)(std::forward<Args>(args)...);
+}
+
+template<typename Fn, typename... Args,
+	std::enable_if_t < !std::is_member_pointer<std::decay_t<Fn>>{}, int > = 0 >
+	constexpr decltype(auto) my_invoke(Fn&& f, Args&&... args)
+	noexcept(noexcept(std::forward<Fn>(f)(std::forward<Args>(args)...))) {
+	return std::forward<Fn>(f)(std::forward<Args>(args)...);
+}
+
 template< class T >
 inline constexpr bool is_copy_constructible_v = std::is_copy_constructible<T>::value;
 
@@ -54,16 +68,13 @@ struct is_invocable :
 template <class Fn, class... ArgTypes>
 inline constexpr bool is_invocable_v = is_invocable<Fn, ArgTypes...>::value;
 
-template <class T>
-constexpr std::add_const_t<T>& as_const(T& t) noexcept {
-	return t;
+template<class _Ty>
+_NODISCARD constexpr std::add_const_t<_Ty>& as_const(_Ty& _Val) noexcept {	// view _Val through const lenses
+	return (_Val);
 }
 
-template <class T>
-constexpr std::add_const_t<T>& as_const(T& t) noexcept;
-
-template <class T>
-void as_const(const T&&) = delete;
+template<class _Ty>
+void as_const(const _Ty&&) = delete;
 
 template< class T >
 inline constexpr bool is_void_v = std::is_void<T>::value;
@@ -97,6 +108,9 @@ inline constexpr bool is_member_object_pointer_v = std::is_member_object_pointer
 
 template< class T >
 inline constexpr bool is_member_function_pointer_v = std::is_member_function_pointer<T>::value;
+
+template< class From, class To >
+inline constexpr bool is_convertible_v = std::is_convertible<From, To>::value;
 
 template< class T, unsigned N = 0 >
 inline constexpr std::size_t extent_v = std::extent<T, N>::value;
