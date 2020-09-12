@@ -97,7 +97,7 @@ bool setter([[maybe_unused]] handle handle, [[maybe_unused]] any index, [[maybe_
             auto *direct = value.try_cast<data_type>();
 
             if(clazz && (direct || value.convert<data_type>())) {
-                std::invoke(Data, *clazz, direct ? *direct : value.cast<data_type>());
+                custom_invoke(Data, *clazz, direct ? *direct : value.cast<data_type>());
                 accepted = true;
             }
         } else if constexpr(is_member_object_pointer_v<decltype(Data)>) {
@@ -111,7 +111,7 @@ bool setter([[maybe_unused]] handle handle, [[maybe_unused]] any index, [[maybe_
                 auto *idx = index.try_cast<std::size_t>();
 
                 if(clazz && idx && (direct || value.convert<underlying_type>())) {
-                    std::invoke(Data, clazz)[*idx] = direct ? *direct : value.cast<underlying_type>();
+                    custom_invoke(Data, clazz)[*idx] = direct ? *direct : value.cast<underlying_type>();
                     accepted = true;
                 }
             }
@@ -121,7 +121,7 @@ bool setter([[maybe_unused]] handle handle, [[maybe_unused]] any index, [[maybe_
                 auto *direct = value.try_cast<data_type>();
 
                 if(clazz && (direct || value.convert<data_type>())) {
-                    std::invoke(Data, clazz) = (direct ? *direct : value.cast<data_type>());
+                    custom_invoke(Data, clazz) = (direct ? *direct : value.cast<data_type>());
                     accepted = true;
                 }
             }
@@ -157,7 +157,7 @@ template<typename Type, auto Data, typename Policy>
 any getter([[maybe_unused]] handle handle, [[maybe_unused]] any index) {
     auto dispatch = [](auto &&value) {
         if constexpr(is_same_v<Policy, as_void_t>) {
-            return any{std::in_place_type<void>};
+            return any{in_place_type<void>};
         } else if constexpr(is_same_v<Policy, as_alias_t>) {
             return any{std::ref(std::forward<decltype(value)>(value))};
         } else {
@@ -169,7 +169,7 @@ any getter([[maybe_unused]] handle handle, [[maybe_unused]] any index) {
     if constexpr(is_function_v<std::remove_pointer_t<decltype(Data)>> || is_member_function_pointer_v<decltype(Data)>) {
         static_assert(is_invocable_v<decltype(Data), Type &>);
         auto *clazz = any{handle}.try_cast<Type>();
-        return clazz ? dispatch(std::invoke(Data, *clazz)) : any{};
+        return clazz ? dispatch(custom_invoke(Data, *clazz)) : any{};
     } else if constexpr(is_member_object_pointer_v<decltype(Data)>) {
         using data_type = std::remove_cv_t<std::remove_reference_t<decltype(std::declval<Type>().*Data)>>;
         static_assert(is_invocable_v<decltype(Data), Type *>);
@@ -177,9 +177,9 @@ any getter([[maybe_unused]] handle handle, [[maybe_unused]] any index) {
 
         if constexpr(is_array_v<data_type>) {
             auto *idx = index.try_cast<std::size_t>();
-            return (clazz && idx) ? dispatch(std::invoke(Data, clazz)[*idx]) : any{};
+            return (clazz && idx) ? dispatch(custom_invoke(Data, clazz)[*idx]) : any{};
         } else {
-            return clazz ? dispatch(std::invoke(Data, clazz)) : any{};
+            return clazz ? dispatch(custom_invoke(Data, clazz)) : any{};
         }
     } else {
         static_assert(is_pointer_v<std::decay_t<decltype(Data)>>);
@@ -200,13 +200,13 @@ any invoke([[maybe_unused]] handle handle, any *args, std::index_sequence<Indexe
 
     auto dispatch = [](auto *... args) {
         if constexpr(is_void_v<typename helper_type::return_type> || is_same_v<Policy, as_void_t>) {
-            std::invoke(Candidate, *args...);
-            return any{std::in_place_type<void>};
+            custom_invoke(Candidate, *args...);
+            return any{in_place_type<void>};
         } else if constexpr(is_same_v<Policy, as_alias_t>) {
-            return any{std::ref(std::invoke(Candidate, *args...))};
+            return any{std::ref(custom_invoke(Candidate, *args...))};
         } else {
             static_assert(is_same_v<Policy, as_is_t>);
-            return any{std::invoke(Candidate, *args...)};
+            return any{custom_invoke(Candidate, *args...)};
         }
     };
 
@@ -441,7 +441,7 @@ public:
             nullptr,
             &internal::type_info<conv_type>::resolve,
             [](const void *instance) -> any {
-                return std::invoke(Candidate, *static_cast<const Type *>(instance));
+                return custom_invoke(Candidate, *static_cast<const Type *>(instance));
             },
             []() noexcept -> meta::conv {
                 return &node;
@@ -570,7 +570,7 @@ public:
                 const auto valid = (handle.type() == internal::type_info<Type>::resolve()->clazz());
 
                 if(valid) {
-                    std::invoke(Func, *any{handle}.try_cast<Type>());
+                    custom_invoke(Func, *any{handle}.try_cast<Type>());
                 }
 
                 return valid;
