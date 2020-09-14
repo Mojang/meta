@@ -432,7 +432,7 @@ public:
      */
     template<auto Candidate>
     factory conv() noexcept {
-        using conv_type = std::invoke_result_t<decltype(Candidate), Type &>;
+        using conv_type = invoke_result_t<decltype(Candidate), Type &>;
         auto * const type = internal::type_info<Type>::resolve();
 
         static internal::conv_node node{
@@ -709,7 +709,7 @@ public:
     template<auto Setter, auto Getter, typename Policy = as_is_t, typename... Property>
     factory data(const std::size_t identifier, Property &&... property) noexcept {
         using owner_type = std::tuple<std::integral_constant<decltype(Setter), Setter>, std::integral_constant<decltype(Getter), Getter>>;
-        using underlying_type = std::invoke_result_t<decltype(Getter), Type &>;
+        using underlying_type = invoke_result_t<decltype(Getter), Type &>;
         static_assert(is_invocable_v<decltype(Setter), Type &, underlying_type>);
         auto * const type = internal::type_info<Type>::resolve();
 
